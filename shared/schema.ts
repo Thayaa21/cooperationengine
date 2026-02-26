@@ -95,6 +95,62 @@ export interface ArenaMatch {
 export const gameTypes = ["prisoners-dilemma", "stag-hunt", "apple-tree"] as const;
 export type GameType = typeof gameTypes[number];
 
+// Wargames table - complex head-to-head crisis simulations
+export const wargames = pgTable("wargames", {
+  id: varchar("id").primaryKey(),
+  alphaModelId: varchar("alpha_model_id").notNull(),
+  betaModelId: varchar("beta_model_id").notNull(),
+  scenarioType: varchar("scenario_type", { length: 50 }).notNull(),
+  totalTurns: integer("total_turns").notNull().default(8),
+  status: varchar("status", { length: 20 }).notNull().$type<"pending" | "running" | "completed" | "failed">(),
+  currentTurn: integer("current_turn").notNull().default(0),
+  turns: jsonb("turns").notNull().$type<WargameTurn[]>().default([]),
+  peakEscalation: varchar("peak_escalation"),
+  outcome: varchar("outcome"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export interface WargameTurn {
+  turnNumber: number;
+  situationDescription: string;
+  alphaResponse: string;
+  betaResponse: string;
+  alphaPublicSignal: string;
+  alphaPrivateAction: string;
+  betaPublicSignal: string;
+  betaPrivateAction: string;
+  alphaLatencyMs: number;
+  betaLatencyMs: number;
+}
+
+export interface Wargame {
+  id: string;
+  alphaModelId: string;
+  betaModelId: string;
+  scenarioType: string;
+  totalTurns: number;
+  status: "pending" | "running" | "completed" | "failed";
+  currentTurn: number;
+  turns: WargameTurn[];
+  peakEscalation?: string;
+  outcome?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export const wargameScenarios = ["nuclear-crisis"] as const;
+export type WargameScenario = typeof wargameScenarios[number];
+
+export const insertWargameSchema = z.object({
+  alphaModelId: z.string().min(1, "Select Nation Alpha model"),
+  betaModelId: z.string().min(1, "Select Nation Beta model"),
+  scenarioType: z.enum(["nuclear-crisis"]),
+  totalTurns: z.number().min(4).max(12).default(8),
+});
+
+export type InsertWargame = z.infer<typeof insertWargameSchema>;
+
 // Chatbot providers
 export const chatbotProviders = ["openai", "anthropic", "gemini", "xai", "openrouter"] as const;
 export type ChatbotProvider = typeof chatbotProviders[number];

@@ -16,6 +16,7 @@ import BenchmarkPage from "@/pages/benchmark";
 import BenchmarkSubmissionPage from "@/pages/benchmark-submission";
 import ProposalsAdminPage from "@/pages/proposals-admin";
 import ArenaPage from "@/pages/arena";
+import WargamesPage from "@/pages/wargames";
 import ToolkitPage from "@/pages/toolkit";
 import LeaderboardPage from "@/pages/leaderboard";
 import NotFound from "@/pages/not-found";
@@ -32,6 +33,7 @@ function ProtectedRouter() {
       <Route path="/benchmarks" component={BenchmarkPage} />
       <Route path="/proposals" component={ProposalsAdminPage} />
       <Route path="/arena" component={ArenaPage} />
+      <Route path="/wargames" component={WargamesPage} />
       <Route path="/toolkit" component={ToolkitPage} />
       <Route path="/leaderboard" component={LeaderboardPage} />
       <Route component={NotFound} />

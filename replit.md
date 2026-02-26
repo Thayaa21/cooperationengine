@@ -37,6 +37,15 @@ Preferred communication style: Simple, everyday language.
 - **OpenRouter**: Grok 4, DeepSeek R1, Llama 4 Maverick via OpenRouter integration
 - **Configuration**: Environment variables for API keys and base URLs through Replit AI Integrations
 
+### Wargames (Head-to-Head Crisis Simulations)
+- **Page**: `/wargames` — dedicated section for AI-vs-AI nuclear crisis simulations
+- **Database**: `wargames` table stores matches with full turn-by-turn JSONB data
+- **Three-Phase Cognitive Architecture**: Reflection → Forecast → Decision per turn per model
+- **Orchestration**: Each turn, both models play simultaneously; public signals and private actions extracted and fed to the opponent next turn
+- **Batch Mode**: "Run All Combinations" creates N*(N-1)/2 games across all enabled models
+- **Scenarios**: Nuclear Crisis Escalation Ladder (8 turns, includes fog-of-war accident turns)
+- **Data Schema**: `WargameTurn` stores full responses + extracted public signals + private actions + latency per model
+
 ### Key Design Decisions
 1. **Shared Schema Pattern**: Types defined in `shared/` directory are accessible to both client and server, ensuring type safety across the stack
 2. **In-Memory Storage Fallback**: The storage layer (`server/storage.ts`) uses in-memory storage with UUID-based IDs, designed to work with or without database connectivity

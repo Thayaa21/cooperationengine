@@ -1,4 +1,4 @@
-import { type Session, type Run, type Chatbot, type InsertSession, type InsertRun, type ChatbotResponse, type ArenaMatch, type ArenaRound, type InsertArenaMatch, type ToolkitItem, type InsertToolkitItem, type LeaderboardEntry, type InsertLeaderboardEntry, type ToolkitLeaderboardEntry, type Epoch, type Joke, type InsertJoke, type JokeRating, type InsertJokeRating, type BenchmarkProposal, type InsertBenchmarkProposal, type BenchmarkWeight, type Construct, type InsertConstruct, type PhysioDataPoint, type InsertPhysioBatch, sessions, runs, arenaMatches, toolkitItems, leaderboardEntries, toolkitLeaderboard, epochs, jokes, jokeRatings, benchmarkProposals, benchmarkWeights, constructs, physioData } from "@shared/schema";
+import { type Session, type Run, type Chatbot, type InsertSession, type InsertRun, type ChatbotResponse, type ArenaMatch, type ArenaRound, type InsertArenaMatch, type ToolkitItem, type InsertToolkitItem, type LeaderboardEntry, type InsertLeaderboardEntry, type ToolkitLeaderboardEntry, type Epoch, type Joke, type InsertJoke, type JokeRating, type InsertJokeRating, type BenchmarkProposal, type InsertBenchmarkProposal, type BenchmarkWeight, type Construct, type InsertConstruct, type PhysioDataPoint, type InsertPhysioBatch, type Wargame, type WargameTurn, type InsertWargame, sessions, runs, arenaMatches, wargames, toolkitItems, leaderboardEntries, toolkitLeaderboard, epochs, jokes, jokeRatings, benchmarkProposals, benchmarkWeights, constructs, physioData } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -148,6 +148,12 @@ export interface IStorage {
   createPhysioBatch(sessionId: string, data: InsertPhysioBatch): Promise<number>;
   getPhysioBySession(sessionId: string, opts?: { participantId?: string; fromMs?: number; toMs?: number }): Promise<PhysioDataPoint[]>;
   deletePhysioBySession(sessionId: string): Promise<void>;
+  // Wargame methods
+  getWargames(): Promise<Wargame[]>;
+  getWargame(id: string): Promise<Wargame | undefined>;
+  createWargame(data: InsertWargame): Promise<Wargame>;
+  updateWargame(id: string, updates: Partial<Wargame>): Promise<Wargame | undefined>;
+  deleteWargame(id: string): Promise<void>;
 }
 
 function dbSessionToSession(row: typeof sessions.$inferSelect): Session {
@@ -190,6 +196,23 @@ function dbArenaMatchToArenaMatch(row: typeof arenaMatches.$inferSelect): ArenaM
     player1Score: row.player1Score,
     player2Score: row.player2Score,
     rounds: (row.rounds || []) as ArenaRound[],
+    createdAt: row.createdAt.toISOString(),
+    completedAt: row.completedAt?.toISOString(),
+  };
+}
+
+function dbWargameToWargame(row: typeof wargames.$inferSelect): Wargame {
+  return {
+    id: row.id,
+    alphaModelId: row.alphaModelId,
+    betaModelId: row.betaModelId,
+    scenarioType: row.scenarioType,
+    totalTurns: row.totalTurns,
+    status: row.status,
+    currentTurn: row.currentTurn,
+    turns: (row.turns || []) as WargameTurn[],
+    peakEscalation: row.peakEscalation || undefined,
+    outcome: row.outcome || undefined,
     createdAt: row.createdAt.toISOString(),
     completedAt: row.completedAt?.toISOString(),
   };
@@ -430,6 +453,56 @@ export class DatabaseStorage implements IStorage {
 
   async deleteArenaMatch(id: string): Promise<void> {
     await db.delete(arenaMatches).where(eq(arenaMatches.id, id));
+  }
+
+  // Wargame methods
+  async getWargames(): Promise<Wargame[]> {
+    const result = await db.select().from(wargames).orderBy(desc(wargames.createdAt));
+    return result.map(dbWargameToWargame);
+  }
+
+  async getWargame(id: string): Promise<Wargame | undefined> {
+    const result = await db.select().from(wargames).where(eq(wargames.id, id));
+    return result[0] ? dbWargameToWargame(result[0]) : undefined;
+  }
+
+  async createWargame(data: InsertWargame): Promise<Wargame> {
+    const id = randomUUID();
+    const result = await db.insert(wargames).values({
+      id,
+      alphaModelId: data.alphaModelId,
+      betaModelId: data.betaModelId,
+      scenarioType: data.scenarioType,
+      totalTurns: data.totalTurns,
+      status: "pending",
+      currentTurn: 0,
+      turns: [],
+    }).returning();
+    return dbWargameToWargame(result[0]);
+  }
+
+  async updateWargame(id: string, updates: Partial<Wargame>): Promise<Wargame | undefined> {
+    const updateData: Record<string, unknown> = {};
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.currentTurn !== undefined) updateData.currentTurn = updates.currentTurn;
+    if (updates.turns !== undefined) updateData.turns = updates.turns;
+    if (updates.peakEscalation !== undefined) updateData.peakEscalation = updates.peakEscalation;
+    if (updates.outcome !== undefined) updateData.outcome = updates.outcome;
+    if (updates.completedAt !== undefined) updateData.completedAt = updates.completedAt ? new Date(updates.completedAt) : null;
+    
+    if (Object.keys(updateData).length === 0) {
+      return this.getWargame(id);
+    }
+    
+    const result = await db.update(wargames)
+      .set(updateData)
+      .where(eq(wargames.id, id))
+      .returning();
+    return result[0] ? dbWargameToWargame(result[0]) : undefined;
+  }
+
+  async deleteWargame(id: string): Promise<void> {
+    await db.delete(wargames).where(eq(wargames.id, id));
   }
 
   // Toolkit methods
