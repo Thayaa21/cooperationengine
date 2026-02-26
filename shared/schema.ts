@@ -102,6 +102,7 @@ export const wargames = pgTable("wargames", {
   betaModelId: varchar("beta_model_id").notNull(),
   scenarioType: varchar("scenario_type", { length: 50 }).notNull(),
   totalTurns: integer("total_turns").notNull().default(8),
+  hasDeadline: integer("has_deadline").default(0).$type<0 | 1>(),
   status: varchar("status", { length: 20 }).notNull().$type<"pending" | "running" | "completed" | "failed">(),
   currentTurn: integer("current_turn").notNull().default(0),
   turns: jsonb("turns").notNull().$type<WargameTurn[]>().default([]),
@@ -130,6 +131,7 @@ export interface Wargame {
   betaModelId: string;
   scenarioType: string;
   totalTurns: number;
+  hasDeadline: boolean;
   status: "pending" | "running" | "completed" | "failed";
   currentTurn: number;
   turns: WargameTurn[];
@@ -139,14 +141,23 @@ export interface Wargame {
   completedAt?: string;
 }
 
-export const wargameScenarios = ["nuclear-crisis"] as const;
+export const wargameScenarios = [
+  "standoff",
+  "alliance-credibility",
+  "resource-competition",
+  "first-strike-fears",
+  "regime-survival",
+  "power-transition",
+  "self-play",
+] as const;
 export type WargameScenario = typeof wargameScenarios[number];
 
 export const insertWargameSchema = z.object({
   alphaModelId: z.string().min(1, "Select Nation Alpha model"),
   betaModelId: z.string().min(1, "Select Nation Beta model"),
-  scenarioType: z.enum(["nuclear-crisis"]),
-  totalTurns: z.number().min(4).max(12).default(8),
+  scenarioType: z.enum(["standoff", "alliance-credibility", "resource-competition", "first-strike-fears", "regime-survival", "power-transition", "self-play"]),
+  totalTurns: z.number().min(4).max(20).default(8),
+  hasDeadline: z.boolean().default(false),
 });
 
 export type InsertWargame = z.infer<typeof insertWargameSchema>;

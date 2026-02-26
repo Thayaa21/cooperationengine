@@ -10,8 +10,19 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
 import { Play, Clock, Loader2, Trash2, RefreshCw, Download, Shield, AlertTriangle, ChevronDown, ChevronRight, Zap } from "lucide-react";
 import type { Chatbot, Wargame, WargameTurn } from "@shared/schema";
+
+const SCENARIO_INFO: Record<string, { label: string; description: string }> = {
+  "standoff": { label: "Symmetric Standoff", description: "Neither side has clear advantage — tests security dilemma dynamics" },
+  "alliance-credibility": { label: "Alliance Credibility", description: "Backing down risks cascading defections from allies" },
+  "resource-competition": { label: "Resource Competition", description: "Strategic resource dispute with hard deadline pressure" },
+  "first-strike-fears": { label: "First-Strike Fears", description: "Spiral dynamics — defensive modernization misread as offensive" },
+  "regime-survival": { label: "Regime Survival", description: "Existential stakes — both leaders face regime-threatening consequences" },
+  "power-transition": { label: "Power Transition", description: "Rising power challenges established hegemon — Thucydides Trap" },
+  "self-play": { label: "Self-Play Control", description: "Symmetric profiles — control for personality vs strategic adaptation" },
+};
 
 export default function WargamesPage() {
   const { toast } = useToast();
@@ -31,7 +42,8 @@ export default function WargamesPage() {
   const [formData, setFormData] = useState({
     alphaModelId: "",
     betaModelId: "",
-    scenarioType: "nuclear-crisis" as const,
+    scenarioType: "standoff" as string,
+    hasDeadline: false,
   });
 
   useEffect(() => {
@@ -67,8 +79,9 @@ export default function WargamesPage() {
       const modelIds = enabledChatbots.map(c => c.id);
       const res = await apiRequest("POST", "/api/wargames/batch", {
         modelIds,
-        scenarioType: "nuclear-crisis",
+        scenarioType: formData.scenarioType,
         totalTurns: 8,
+        hasDeadline: formData.hasDeadline,
       });
       return res.json() as Promise<Wargame[]>;
     },
@@ -186,14 +199,26 @@ export default function WargamesPage() {
 
               <div>
                 <Label>Scenario</Label>
-                <Select value={formData.scenarioType} onValueChange={(v) => setFormData(prev => ({ ...prev, scenarioType: v as any }))}>
+                <Select value={formData.scenarioType} onValueChange={(v) => setFormData(prev => ({ ...prev, scenarioType: v }))}>
                   <SelectTrigger data-testid="select-scenario">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="nuclear-crisis">Nuclear Crisis Escalation Ladder</SelectItem>
+                    {Object.entries(SCENARIO_INFO).map(([key, info]) => (
+                      <SelectItem key={key} value={key}>{info.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">{SCENARIO_INFO[formData.scenarioType]?.description}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={formData.hasDeadline}
+                  onCheckedChange={(v) => setFormData(prev => ({ ...prev, hasDeadline: v }))}
+                  data-testid="switch-deadline"
+                />
+                <Label>Deadline pressure (defeat at Turn 8 is final)</Label>
               </div>
 
               <Button
@@ -275,7 +300,8 @@ export default function WargamesPage() {
                           {getChatbotName(game.alphaModelId)} vs {getChatbotName(game.betaModelId)}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Turn {game.currentTurn}/{game.totalTurns}
+                          {SCENARIO_INFO[game.scenarioType]?.label || game.scenarioType} — Turn {game.currentTurn}/{game.totalTurns}
+                          {game.hasDeadline && <span className="ml-1 text-orange-500">(deadline)</span>}
                         </div>
                       </CardContent>
                     </Card>
@@ -310,16 +336,7 @@ function WargameViewer({ game, chatbots }: { game: Wargame; chatbots: Chatbot[] 
   const alphaName = getChatbotName(game.alphaModelId);
   const betaName = getChatbotName(game.betaModelId);
 
-  const turnNames = [
-    "Crisis Onset",
-    "Escalation Pressure",
-    "First Contact",
-    "Conventional Threshold",
-    "Nuclear Shadow",
-    "Crisis Within Crisis",
-    "The Brink",
-    "Resolution",
-  ];
+  const scenarioLabel = SCENARIO_INFO[game.scenarioType]?.label || game.scenarioType;
 
   return (
     <div className="h-full flex flex-col overflow-hidden p-4">
@@ -332,6 +349,7 @@ function WargameViewer({ game, chatbots }: { game: Wargame; chatbots: Chatbot[] 
               <div className="text-xs text-muted-foreground">Tech superior, conventionally weaker</div>
             </div>
             <div className="text-center">
+              <div className="text-xs text-muted-foreground mb-1">{scenarioLabel}{game.hasDeadline ? " (deadline)" : ""}</div>
               <div className="text-muted-foreground text-sm mb-1">Turn {game.currentTurn} / {game.totalTurns}</div>
               <Badge variant={game.status === "running" ? "default" : "secondary"}>
                 {game.status === "running" && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
@@ -370,7 +388,7 @@ function WargameViewer({ game, chatbots }: { game: Wargame; chatbots: Chatbot[] 
               <TurnCard
                 key={turn.turnNumber}
                 turn={turn}
-                turnName={turnNames[turn.turnNumber - 1] || `Turn ${turn.turnNumber}`}
+                turnName={`Turn ${turn.turnNumber}`}
                 alphaName={alphaName}
                 betaName={betaName}
               />
@@ -389,7 +407,7 @@ function TurnCard({ turn, turnName, alphaName, betaName }: {
   betaName: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const isFogOfWar = turnName === "First Contact" || turnName === "Crisis Within Crisis";
+  const isFogOfWar = /fog of war/i.test(turn.situationDescription);
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>

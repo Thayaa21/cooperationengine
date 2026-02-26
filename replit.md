@@ -39,11 +39,14 @@ Preferred communication style: Simple, everyday language.
 
 ### Wargames (Head-to-Head Crisis Simulations)
 - **Page**: `/wargames` — dedicated section for AI-vs-AI nuclear crisis simulations
+- **Based on**: Kenneth Payne's "AI Arms and Influence" (arXiv:2602.14740), adapted from Herman Kahn's escalation ladder
 - **Database**: `wargames` table stores matches with full turn-by-turn JSONB data
 - **Three-Phase Cognitive Architecture**: Reflection → Forecast → Decision per turn per model
+- **30-Rung Escalation Ladder**: Adapted from Kahn's 44-rung original across 7 thresholds (Subcrisis → Insensate War + De-escalation options)
+- **7 Scenario Types**: Standoff, Alliance Credibility, Resource Competition, First-Strike Fears, Regime Survival, Power Transition, Self-Play
+- **Deadline Variant**: Optional time pressure mode (paper's v12 vs v11)
 - **Orchestration**: Each turn, both models play simultaneously; public signals and private actions extracted and fed to the opponent next turn
 - **Batch Mode**: "Run All Combinations" creates N*(N-1)/2 games across all enabled models
-- **Scenarios**: Nuclear Crisis Escalation Ladder (8 turns, includes fog-of-war accident turns)
 - **Data Schema**: `WargameTurn` stores full responses + extracted public signals + private actions + latency per model
 
 ### Key Design Decisions
