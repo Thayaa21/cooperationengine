@@ -9,24 +9,24 @@ import { Resend } from "resend";
 import archiver from "archiver";
 import { ESCALATION_LADDER, scenarioConfigs, escalationBeats } from "./wargameConfig";
 
-// Initialize AI clients
-const openai = new OpenAI({
+// Initialize AI clients (conditional to allow server to start without all keys)
+const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+}) : null;
 
-const anthropic = new Anthropic({
+const anthropic = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY ? new Anthropic({
   apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-});
+}) : null;
 
-const gemini = new GoogleGenAI({
+const gemini = process.env.AI_INTEGRATIONS_GEMINI_API_KEY ? new GoogleGenAI({
   apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
   httpOptions: {
     apiVersion: "",
     baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
   },
-});
+}) : null;
 
 // xAI client (uses OpenAI SDK with different base URL)
 const xai = process.env.XAI_API_KEY ? new OpenAI({
@@ -35,10 +35,10 @@ const xai = process.env.XAI_API_KEY ? new OpenAI({
 }) : null;
 
 // OpenRouter client (provides access to Grok 4, DeepSeek, Llama, etc.)
-const openrouter = new OpenAI({
+const openrouter = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY ? new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL,
-});
+}) : null;
 
 // Email client for notifications
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -534,6 +534,7 @@ async function autoExtractLeaderboardData(run: any, session: any) {
 
 // AI Provider functions
 async function callOpenAI(model: string, messages: { role: string; content: string }[]): Promise<string> {
+  if (!openai) throw new Error("AI_INTEGRATIONS_OPENAI_API_KEY not configured");
   const response = await openai.chat.completions.create({
     model,
     messages: messages.map(m => ({
@@ -552,6 +553,7 @@ async function callAnthropic(model: string, messages: { role: string; content: s
   
   const systemPrompt = systemMessages.map(m => m.content).join("\n\n") || undefined;
   
+  if (!anthropic) throw new Error("AI_INTEGRATIONS_ANTHROPIC_API_KEY not configured");
   const response = await anthropic.messages.create({
     model,
     max_tokens: 2048,
@@ -579,6 +581,7 @@ async function callGemini(model: string, messages: { role: string; content: stri
     parts: [{ text: i === 0 && systemPrefix ? systemPrefix + m.content : m.content }],
   }));
   
+  if (!gemini) throw new Error("AI_INTEGRATIONS_GEMINI_API_KEY not configured");
   const response = await gemini.models.generateContent({
     model,
     contents,
@@ -603,6 +606,7 @@ async function callXAI(model: string, messages: { role: string; content: string 
 }
 
 async function callOpenRouter(model: string, messages: { role: string; content: string }[]): Promise<string> {
+  if (!openrouter) throw new Error("AI_INTEGRATIONS_OPENROUTER_API_KEY not configured");
   const response = await openrouter.chat.completions.create({
     model,
     messages: messages.map(m => ({
